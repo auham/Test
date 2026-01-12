@@ -32,6 +32,10 @@
         }
         
         body {
+            <div id="notification-bar" style="display:none; background: #D4AF37; color: #1a1a2e; padding: 10px; text-align: center; font-weight: bold; cursor: pointer; position: sticky; top: 0; z-index: 9999;">
+    اضغط هنا لتفعيل تنبيهات الزواجات والأخبار 🔔
+</div>
+
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
             min-height: 100vh;
             color: #fff;
@@ -1572,6 +1576,24 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.error('خطأ في النظام', err));
     });
 }
+// كود تشغيل زر الإشعارات
+const notifyBar = document.getElementById('notification-bar');
+
+// التأكد إذا كان المستخدم قد فعل الإشعارات سابقاً أم لا
+if (Notification.permission === 'default') {
+    notifyBar.style.display = 'block'; // إظهار الزر إذا لم يسبق له التفعيل
+}
+
+notifyBar.onclick = function() {
+    Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+            alert('تم تفعيل التنبيهات بنجاح!');
+            notifyBar.style.display = 'none'; // إخفاء الزر بعد التفعيل
+        } else {
+            alert('يجب السماح بالتنبيهات من إعدادات المتصفح');
+        }
+    });
+};
 
     </script>
 </body>
