@@ -17,22 +17,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* إضافة تنسيق الشريط الذهبي الجديد */
-        #notification-bar {
-            display: none;
-            background: linear-gradient(90deg, #D4AF37, #f1d27b);
-            color: #1a1a2e;
-            padding: 12px;
-            text-align: center;
-            font-weight: bold;
-            cursor: pointer;
-            position: sticky;
-            top: 0;
-            z-index: 10000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            font-family: 'Tajawal', sans-serif;
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -816,9 +800,9 @@
     </style>
 </head>
 <body>
-    <div id="notification-bar" onclick="requestPushPermission()">
-        🔔 هل ترغب في تلقي إشعارات بجديد الدعوات والأخبار؟ اضغط هنا لتفعيل التنبيهات
-    </div>
+<div id="notification-bar" style="display:none; background:linear-gradient(90deg, #D4AF37, #f1d27b); color:#1a1a2e; padding:15px; text-align:center; font-weight:bold; cursor:pointer; position:sticky; top:0; z-index:10000; font-family:'Tajawal',sans-serif; border-bottom:2px solid #fff;" onclick="Notification.requestPermission().then(p => { if(p==='granted') { alert('تم تفعيل الإشعارات بنجاح ✓'); this.style.display='none'; } })">
+    🔔 اضغط هنا لتفعيل إشعارات الزواجات والأخبار في هذا الجوال
+</div>
 
     <div id="app"></div>
 
@@ -833,9 +817,11 @@
             appId: "1:87515804054:web:e98aab9bee5ac9cc4c6db7"
         };
 
+        // Firebase REST API URLs
         const FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents`;
         const AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`;
 
+        // ==================== App State ====================
         const state = {
             currentView: 'home',
             isAuthenticated: false,
@@ -849,8 +835,10 @@
             menuOpen: false
         };
 
+        // Default image
         const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800&q=80';
 
+        // ==================== SVG Icons ====================
         const icons = {
             menu: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>`,
             x: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
@@ -874,12 +862,15 @@
             try {
                 const date = new Date(dateStr);
                 return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-            } catch { return dateStr; }
+            } catch {
+                return dateStr;
+            }
         }
 
         function showToast(message, type = 'success') {
             const existing = document.querySelector('.toast');
             if (existing) existing.remove();
+            
             const toast = document.createElement('div');
             toast.className = `toast message ${type}`;
             toast.textContent = message;
@@ -887,15 +878,18 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
+        // ==================== Firestore Helpers ====================
         function parseFirestoreDoc(doc) {
             if (!doc || !doc.fields) return null;
             const obj = { id: doc.name ? doc.name.split('/').pop() : '' };
+            
             Object.keys(doc.fields).forEach(key => {
                 const field = doc.fields[key];
                 if (field.stringValue !== undefined) obj[key] = field.stringValue;
                 else if (field.integerValue !== undefined) obj[key] = parseInt(field.integerValue);
                 else if (field.timestampValue !== undefined) obj[key] = field.timestampValue;
             });
+            
             return obj;
         }
 
@@ -910,7 +904,7 @@
             return { fields };
         }
 
-        // ==================== API & CRUD ====================
+        // ==================== API Functions ====================
         async function fetchWeddings() {
             try {
                 const res = await fetch(`${FIRESTORE_URL}/weddings`);
@@ -919,7 +913,9 @@
                     state.weddings = data.documents.map(parseFirestoreDoc).filter(Boolean);
                     state.weddings.sort((a, b) => new Date(a.date) - new Date(b.date));
                 }
-            } catch (error) { console.log('Error:', error); }
+            } catch (error) {
+                console.log('Error fetching weddings:', error);
+            }
         }
 
         async function fetchNews() {
@@ -930,15 +926,21 @@
                     state.news = data.documents.map(parseFirestoreDoc).filter(Boolean);
                     state.news.sort((a, b) => new Date(b.date) - new Date(a.date));
                 }
-            } catch (error) { console.log('Error:', error); }
+            } catch (error) {
+                console.log('Error fetching news:', error);
+            }
         }
 
         async function fetchNotifications() {
             try {
                 const res = await fetch(`${FIRESTORE_URL}/notifications`);
                 const data = await res.json();
-                if (data.documents) { state.notifications = data.documents.map(parseFirestoreDoc).filter(Boolean); }
-            } catch (error) { console.log('Error:', error); }
+                if (data.documents) {
+                    state.notifications = data.documents.map(parseFirestoreDoc).filter(Boolean);
+                }
+            } catch (error) {
+                console.log('Error fetching notifications:', error);
+            }
         }
 
         async function addWedding(weddingData) {
@@ -949,8 +951,17 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.authToken}` },
                     body: JSON.stringify(toFirestoreFields(data))
                 });
-                if (res.ok) { showToast('تمت إضافة الدعوة بنجاح ✓'); await fetchWeddings(); return true; }
-            } catch (error) { showToast('خطأ أثناء الإضافة', 'error'); return false; }
+                
+                if (res.ok) {
+                    showToast('تمت إضافة الدعوة بنجاح ✓');
+                    await fetchWeddings();
+                    return true;
+                }
+                throw new Error('Failed');
+            } catch (error) {
+                showToast('حدث خطأ أثناء الإضافة', 'error');
+                return false;
+            }
         }
 
         async function updateWedding(id, weddingData) {
@@ -960,16 +971,38 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.authToken}` },
                     body: JSON.stringify(toFirestoreFields(weddingData))
                 });
-                if (res.ok) { showToast('تم التحديث بنجاح ✓'); state.editingWedding = null; await fetchWeddings(); return true; }
-            } catch (error) { showToast('خطأ أثناء التحديث', 'error'); return false; }
+                
+                if (res.ok) {
+                    showToast('تم التحديث بنجاح ✓');
+                    state.editingWedding = null;
+                    await fetchWeddings();
+                    return true;
+                }
+                throw new Error('Failed');
+            } catch (error) {
+                showToast('حدث خطأ أثناء التحديث', 'error');
+                return false;
+            }
         }
 
         async function deleteWedding(id) {
-            if (!confirm('هل أنت متأكد من الحذف؟')) return;
+            if (!confirm('هل أنت متأكد من حذف هذه الدعوة؟')) return;
+            
             try {
-                const res = await fetch(`${FIRESTORE_URL}/weddings/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${state.authToken}` } });
-                if (res.ok) { showToast('تم الحذف'); state.selectedWedding = null; await fetchWeddings(); render(); }
-            } catch (error) { showToast('خطأ أثناء الحذف', 'error'); }
+                const res = await fetch(`${FIRESTORE_URL}/weddings/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${state.authToken}` }
+                });
+                
+                if (res.ok) {
+                    showToast('تم الحذف بنجاح');
+                    state.selectedWedding = null;
+                    await fetchWeddings();
+                    render();
+                }
+            } catch (error) {
+                showToast('حدث خطأ أثناء الحذف', 'error');
+            }
         }
 
         async function addNews(newsData) {
@@ -980,8 +1013,17 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.authToken}` },
                     body: JSON.stringify(toFirestoreFields(data))
                 });
-                if (res.ok) { showToast('تم النشر بنجاح ✓'); await fetchNews(); return true; }
-            } catch (error) { showToast('خطأ أثناء النشر', 'error'); return false; }
+                
+                if (res.ok) {
+                    showToast('تم نشر الخبر بنجاح ✓');
+                    await fetchNews();
+                    return true;
+                }
+                throw new Error('Failed');
+            } catch (error) {
+                showToast('حدث خطأ أثناء النشر', 'error');
+                return false;
+            }
         }
 
         async function updateNews(id, newsData) {
@@ -991,16 +1033,37 @@
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.authToken}` },
                     body: JSON.stringify(toFirestoreFields(newsData))
                 });
-                if (res.ok) { showToast('تم التحديث بنجاح ✓'); state.editingNews = null; await fetchNews(); return true; }
-            } catch (error) { showToast('خطأ أثناء التحديث', 'error'); return false; }
+                
+                if (res.ok) {
+                    showToast('تم التحديث بنجاح ✓');
+                    state.editingNews = null;
+                    await fetchNews();
+                    return true;
+                }
+                throw new Error('Failed');
+            } catch (error) {
+                showToast('حدث خطأ أثناء التحديث', 'error');
+                return false;
+            }
         }
 
         async function deleteNews(id) {
-            if (!confirm('هل أنت متأكد من الحذف؟')) return;
+            if (!confirm('هل أنت متأكد من حذف هذا الخبر؟')) return;
+            
             try {
-                const res = await fetch(`${FIRESTORE_URL}/news/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${state.authToken}` } });
-                if (res.ok) { showToast('تم الحذف'); await fetchNews(); render(); }
-            } catch (error) { showToast('خطأ أثناء الحذف', 'error'); }
+                const res = await fetch(`${FIRESTORE_URL}/news/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${state.authToken}` }
+                });
+                
+                if (res.ok) {
+                    showToast('تم الحذف بنجاح');
+                    await fetchNews();
+                    render();
+                }
+            } catch (error) {
+                showToast('حدث خطأ أثناء الحذف', 'error');
+            }
         }
 
         async function login(email, password) {
@@ -1010,108 +1073,467 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password, returnSecureToken: true })
                 });
+                
                 const data = await res.json();
+                
                 if (data.idToken) {
                     state.authToken = data.idToken;
                     state.isAuthenticated = true;
-                    showToast('تم تسجيل الدخول ✓');
+                    showToast('تم تسجيل الدخول بنجاح ✓');
                     return true;
-                } else { showToast('خطأ في البيانات', 'error'); return false; }
-            } catch (error) { showToast('خطأ في الاتصال', 'error'); return false; }
+                } else {
+                    let msg = 'حدث خطأ أثناء تسجيل الدخول';
+                    if (data.error?.message?.includes('INVALID') || data.error?.message?.includes('EMAIL_NOT_FOUND')) {
+                        msg = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+                    }
+                    showToast(msg, 'error');
+                    return false;
+                }
+            } catch (error) {
+                showToast('خطأ في الاتصال', 'error');
+                return false;
+            }
         }
 
         function logout() {
             state.isAuthenticated = false;
             state.authToken = null;
             state.currentView = 'home';
-            showToast('تم الخروج');
+            showToast('تم تسجيل الخروج');
             render();
         }
 
         // ==================== Event Handlers ====================
-        function navigateTo(view) { state.currentView = view; state.menuOpen = false; render(); window.scrollTo(0,0); }
-        function toggleMenu() { state.menuOpen = !state.menuOpen; render(); }
-        function openWedding(id) { state.selectedWedding = state.weddings.find(w => w.id === id); render(); }
-        function closeModal() { state.selectedWedding = null; render(); }
-        function editWedding(id) { state.editingWedding = state.weddings.find(w => w.id === id); state.selectedWedding = null; state.currentView = 'admin'; render(); }
-        function editNews(id) { state.editingNews = state.news.find(n => n.id === id); state.currentView = 'admin'; render(); }
-        function cancelEdit() { state.editingWedding = null; state.editingNews = null; render(); }
+        function navigateTo(view) {
+            state.currentView = view;
+            state.menuOpen = false;
+            render();
+        }
+
+        function toggleMenu() {
+            state.menuOpen = !state.menuOpen;
+            render();
+        }
+
+        function openWedding(id) {
+            state.selectedWedding = state.weddings.find(w => w.id === id);
+            render();
+        }
+
+        function closeModal() {
+            state.selectedWedding = null;
+            render();
+        }
 
         function shareWedding() {
             const w = state.selectedWedding;
             if (!w) return;
-            const text = `دعوة زفاف\n\nيسعدنا دعوتكم لحضور زفاف\n${w.groom}\n\n📅 ${formatDate(w.date)}\n📍 ${w.location || ''}\n\n${w.mapLink ? 'الموقع: ' + w.mapLink : ''}`;
-            if (navigator.share) { navigator.share({ title: `دعوة زفاف ${w.groom}`, text }); }
-            else { navigator.clipboard.writeText(text); showToast('تم نسخ الدعوة ✓'); }
+            
+            const text = `دعوة زفاف\n\nيسعدنا دعوتكم لحضور زفاف\n${w.groom}\n\n📅 ${formatDate(w.date)}\n⏰ ${w.time || ''}\n📍 ${w.location || ''}\n\n${w.mapLink ? 'الموقع: ' + w.mapLink : ''}`;
+            
+            if (navigator.share) {
+                navigator.share({ title: `دعوة زفاف ${w.groom}`, text });
+            } else {
+                navigator.clipboard.writeText(text);
+                showToast('تم نسخ الدعوة ✓');
+            }
+        }
+
+        function editWedding(id) {
+            state.editingWedding = state.weddings.find(w => w.id === id);
+            state.selectedWedding = null;
+            state.currentView = 'admin';
+            render();
+        }
+
+        function editNews(id) {
+            state.editingNews = state.news.find(n => n.id === id);
+            state.currentView = 'admin';
+            render();
+        }
+
+        function cancelEdit() {
+            state.editingWedding = null;
+            state.editingNews = null;
+            render();
         }
 
         async function handleWeddingSubmit(e) {
             e.preventDefault();
             const form = e.target;
-            const data = { groom: form.groom.value, date: form.date.value, time: form.time.value, location: form.location.value, mapLink: form.mapLink.value, family: form.family.value || 'عائلة المريبيط' };
-            const success = state.editingWedding ? await updateWedding(state.editingWedding.id, data) : await addWedding(data);
-            if (success) { form.reset(); render(); }
+            const data = {
+                groom: form.groom.value,
+                date: form.date.value,
+                time: form.time.value,
+                location: form.location.value,
+                mapLink: form.mapLink.value,
+                family: form.family.value || 'عائلة المريبيط'
+            };
+            
+            let success;
+            if (state.editingWedding) {
+                success = await updateWedding(state.editingWedding.id, data);
+            } else {
+                success = await addWedding(data);
+            }
+            
+            if (success) {
+                form.reset();
+                render();
+            }
         }
 
         async function handleNewsSubmit(e) {
             e.preventDefault();
             const form = e.target;
-            const data = { title: form.title.value, content: form.content.value, author: form.author.value || 'الإدارة' };
-            const success = state.editingNews ? await updateNews(state.editingNews.id, data) : await addNews(data);
-            if (success) { form.reset(); render(); }
+            const data = {
+                title: form.title.value,
+                content: form.content.value,
+                author: form.author.value || 'الإدارة'
+            };
+            
+            let success;
+            if (state.editingNews) {
+                success = await updateNews(state.editingNews.id, data);
+            } else {
+                success = await addNews(data);
+            }
+            
+            if (success) {
+                form.reset();
+                render();
+            }
         }
 
         async function handleLogin(e) {
             e.preventDefault();
-            if (await login(e.target.email.value, e.target.password.value)) { state.currentView = 'admin'; render(); }
+            const form = e.target;
+            const success = await login(form.email.value, form.password.value);
+            if (success) {
+                state.currentView = 'admin';
+                render();
+            }
         }
 
         // ==================== Render Functions ====================
         function renderHeader() {
-            return `<header class="header"><div class="header-content"><button class="header-btn" onclick="toggleMenu()">${icons.menu}</button><div style="text-align: center;"><h1>دعوات المريبيط</h1><p>والأخبار القبلية</p></div><button class="header-btn" onclick="navigateTo('notifications')">${icons.bell}${state.notifications.length > 0 ? `<span class="notification-badge">${state.notifications.length}</span>` : ''}</button></div></header>`;
+            return `
+                <header class="header">
+                    <div class="header-content">
+                        <button class="header-btn" onclick="toggleMenu()">${icons.menu}</button>
+                        <div style="text-align: center;">
+                            <h1>دعوات المريبيط</h1>
+                            <p>والأخبار القبلية</p>
+                        </div>
+                        <button class="header-btn" onclick="navigateTo('notifications')" style="position: relative;">
+                            ${icons.bell}
+                            ${state.notifications.length > 0 ? `<span class="notification-badge">${state.notifications.length}</span>` : ''}
+                        </button>
+                    </div>
+                </header>
+            `;
         }
 
         function renderNav() {
-            return `<div class="nav-tabs"><button class="nav-tab ${state.currentView === 'home' ? 'active' : ''}" onclick="navigateTo('home')">الدعوات</button><button class="nav-tab ${state.currentView === 'news' ? 'active' : ''}" onclick="navigateTo('news')">الأخبار</button><button class="nav-tab ${state.currentView === 'about' ? 'active' : ''}" onclick="navigateTo('about')">عن القبيلة</button>${state.isAuthenticated ? `<button class="nav-tab ${state.currentView === 'admin' ? 'active' : ''}" onclick="navigateTo('admin')">لوحة التحكم</button>` : ''}</div>`;
+            return `
+                <div class="nav-tabs">
+                    <button class="nav-tab ${state.currentView === 'home' ? 'active' : ''}" onclick="navigateTo('home')">الدعوات</button>
+                    <button class="nav-tab ${state.currentView === 'news' ? 'active' : ''}" onclick="navigateTo('news')">الأخبار</button>
+                    <button class="nav-tab ${state.currentView === 'about' ? 'active' : ''}" onclick="navigateTo('about')">عن القبيلة</button>
+                    ${state.isAuthenticated ? `<button class="nav-tab ${state.currentView === 'admin' ? 'active' : ''}" onclick="navigateTo('admin')">لوحة التحكم</button>` : ''}
+                </div>
+            `;
         }
 
         function renderSideMenu() {
-            return `<div class="side-menu-overlay ${state.menuOpen ? 'active' : ''}" onclick="toggleMenu()"></div><div class="side-menu ${state.menuOpen ? 'active' : ''}"><button class="menu-close" onclick="toggleMenu()">${icons.x}</button><nav class="menu-nav"><button class="menu-item" onclick="navigateTo('home')">${icons.calendar} الدعوات</button><button class="menu-item" onclick="navigateTo('news')">${icons.bell} الأخبار</button><button class="menu-item" onclick="navigateTo('about')">${icons.users} عن القبيلة</button><div class="menu-divider"></div>${state.isAuthenticated ? `<button class="menu-item success" onclick="navigateTo('admin')">${icons.plus} لوحة التحكم</button><button class="menu-item danger" onclick="logout()">${icons.logout} خروج</button>` : `<button class="menu-item danger" onclick="navigateTo('login')">${icons.lock} دخول المسؤول</button>`}</nav></div>`;
+            return `
+                <div class="side-menu-overlay ${state.menuOpen ? 'active' : ''}" onclick="toggleMenu()"></div>
+                <div class="side-menu ${state.menuOpen ? 'active' : ''}">
+                    <button class="menu-close" onclick="toggleMenu()">${icons.x}</button>
+                    <nav class="menu-nav">
+                        <button class="menu-item" onclick="navigateTo('home'); toggleMenu();">${icons.calendar} الدعوات</button>
+                        <button class="menu-item" onclick="navigateTo('news'); toggleMenu();">${icons.bell} الأخبار</button>
+                        <button class="menu-item" onclick="navigateTo('about'); toggleMenu();">${icons.users} عن القبيلة</button>
+                        <button class="menu-item" onclick="navigateTo('notifications'); toggleMenu();">${icons.bell} الإشعارات</button>
+                        <div class="menu-divider"></div>
+                        ${state.isAuthenticated ? `
+                            <button class="menu-item success" onclick="navigateTo('admin'); toggleMenu();">${icons.plus} لوحة التحكم</button>
+                            <button class="menu-item danger" onclick="logout()">${icons.logout} تسجيل الخروج</button>
+                        ` : `
+                            <button class="menu-item danger" onclick="navigateTo('login'); toggleMenu();">${icons.lock} دخول المسؤول</button>
+                        `}
+                    </nav>
+                </div>
+            `;
+        }
+
+        function renderWeddingCard(w) {
+            return `
+                <div class="wedding-card" onclick="openWedding('${w.id}')">
+                    <div class="card-image" style="background-image: url('${w.image || DEFAULT_IMAGE}')">
+                        <div class="card-family">
+                            <span>${w.family || 'عائلة المريبيط'}</span>
+                            <h3>زفاف</h3>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <h4 class="groom-name">${w.groom}</h4>
+                        <div class="card-info">
+                            <div class="info-item"><span>${formatDate(w.date)}</span>${icons.calendar}</div>
+                            <div class="info-item"><span>${w.time || ''}</span>${icons.clock}</div>
+                            <div class="info-item"><span>${w.location || ''}</span>${icons.mapPin}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function renderHome() {
-            return `<div class="container"><div class="section-title"><h2>الدعوات القادمة</h2><p>نسأل الله لهم التوفيق والسعادة</p></div>${state.weddings.length === 0 ? `<div class="empty-state">${icons.calendar}<p>لا توجد دعوات حالياً</p></div>` : `<div class="cards-grid">${state.weddings.map(w => `<div class="wedding-card" onclick="openWedding('${w.id}')"><div class="card-image" style="background-image: url('${w.image || DEFAULT_IMAGE}')"><div class="card-family"><span>${w.family || 'عائلة المريبيط'}</span><h3>زفاف</h3></div></div><div class="card-content"><h4 class="groom-name">${w.groom}</h4><div class="card-info"><div class="info-item"><span>${formatDate(w.date)}</span>${icons.calendar}</div><div class="info-item"><span>${w.location || ''}</span>${icons.mapPin}</div></div></div></div>`).join('')}</div>`}</div>`;
+            return `
+                <div class="container">
+                    <div class="section-title">
+                        <h2>الدعوات القادمة</h2>
+                        <p>نسأل الله لهم التوفيق والسعادة</p>
+                    </div>
+                    ${state.weddings.length === 0 ? `
+                        <div class="empty-state">
+                            ${icons.calendar}
+                            <p>لا توجد دعوات حالياً</p>
+                        </div>
+                    ` : `
+                        <div class="cards-grid">${state.weddings.map(renderWeddingCard).join('')}</div>
+                    `}
+                </div>
+            `;
         }
 
         function renderWeddingModal() {
             if (!state.selectedWedding) return '';
             const w = state.selectedWedding;
-            return `<div class="modal-overlay" onclick="if(event.target === this) closeModal()"><div class="modal"><div class="modal-header" style="background-image: url('${w.image || DEFAULT_IMAGE}')"><button class="modal-close" onclick="closeModal()">${icons.x}</button></div><div class="modal-content"><div class="modal-family">${w.family || 'عائلة المريبيط'}</div><h2 class="modal-bismillah">بسم الله الرحمن الرحيم</h2><p class="modal-invite">يسعدنا دعوتكم لحضور زفاف</p><div class="modal-groom-box"><h3 class="modal-groom-name">${w.groom}</h3></div><div class="modal-info"><div class="modal-info-item"><div class="info-text"><div class="info-label">التاريخ</div><div class="info-value">${formatDate(w.date)}</div></div>${icons.calendar}</div><div class="modal-info-item"><div class="info-text"><div class="info-label">المكان</div><div class="info-value">${w.location || 'سيتم التحديد'}</div></div>${icons.mapPin}</div></div><div class="modal-buttons"><button class="btn btn-primary" onclick="shareWedding()">${icons.share} مشاركة</button>${w.mapLink ? `<button class="btn btn-secondary" onclick="window.open('${w.mapLink}', '_blank')">${icons.externalLink} الموقع</button>` : ''}</div>${state.isAuthenticated ? `<div class="modal-buttons" style="margin-top:1rem;"><button class="btn btn-secondary" onclick="editWedding('${w.id}')">تعديل</button><button class="btn btn-danger" onclick="deleteWedding('${w.id}')">حذف</button></div>`:''}<p class="modal-dua">نسأل الله لهما التوفيق والسعادة</p></div></div></div>`;
+            
+            return `
+                <div class="modal-overlay" onclick="if(event.target === this) closeModal()">
+                    <div class="modal">
+                        <div class="modal-header" style="background-image: url('${w.image || DEFAULT_IMAGE}')">
+                            <button class="modal-close" onclick="closeModal()">${icons.x}</button>
+                        </div>
+                        <div class="modal-content">
+                            <div class="modal-family">${w.family || 'عائلة المريبيط'}</div>
+                            <h2 class="modal-bismillah">بسم الله الرحمن الرحيم</h2>
+                            <p class="modal-invite">يسعدنا دعوتكم لحضور زفاف</p>
+                            <div class="modal-groom-box">
+                                <h3 class="modal-groom-name">${w.groom}</h3>
+                            </div>
+                            <div class="modal-info">
+                                <div class="modal-info-item">
+                                    <div class="info-text">
+                                        <div class="info-label">التاريخ</div>
+                                        <div class="info-value">${formatDate(w.date)}</div>
+                                    </div>
+                                    ${icons.calendar}
+                                </div>
+                                <div class="modal-info-item">
+                                    <div class="info-text">
+                                        <div class="info-label">الوقت</div>
+                                        <div class="info-value">${w.time || 'سيتم التحديد'}</div>
+                                    </div>
+                                    ${icons.clock}
+                                </div>
+                                <div class="modal-info-item">
+                                    <div class="info-text">
+                                        <div class="info-label">المكان</div>
+                                        <div class="info-value">${w.location || 'سيتم التحديد'}</div>
+                                    </div>
+                                    ${icons.mapPin}
+                                </div>
+                            </div>
+                            <div class="modal-buttons">
+                                <button class="btn btn-primary" onclick="shareWedding()">${icons.share} مشاركة</button>
+                                ${w.mapLink ? `<button class="btn btn-secondary" onclick="window.open('${w.mapLink}', '_blank')">${icons.externalLink} الموقع</button>` : ''}
+                            </div>
+                            ${state.isAuthenticated ? `
+                                <div class="modal-buttons" style="margin-top: 1rem;">
+                                    <button class="btn btn-secondary" onclick="editWedding('${w.id}')">${icons.edit} تعديل</button>
+                                    <button class="btn btn-danger" onclick="deleteWedding('${w.id}')">${icons.trash} حذف</button>
+                                </div>
+                            ` : ''}
+                            <p class="modal-dua">نسأل الله لهما التوفيق والسعادة</p>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function renderNews() {
-            return `<div class="container"><div class="section-title"><h2>أخبار القبيلة</h2></div>${state.news.length === 0 ? `<div class="empty-state">${icons.bell}<p>لا توجد أخبار حالياً</p></div>` : state.news.map(n => `<div class="news-card"><div class="news-header"><span class="news-date">${formatDate(n.date)}</span><h3 class="news-title">${n.title}</h3></div><p class="news-content">${n.content}</p><p class="news-author">الكاتب: ${n.author || 'الإدارة'}</p>${state.isAuthenticated ? `<div class="news-actions"><button class="action-btn edit" onclick="editNews('${n.id}')">تعديل</button><button class="action-btn delete" onclick="deleteNews('${n.id}')">حذف</button></div>` : ''}</div>`).join('')}</div>`;
+            return `
+                <div class="container">
+                    <div class="section-title"><h2>أخبار القبيلة</h2></div>
+                    ${state.news.length === 0 ? `
+                        <div class="empty-state">${icons.bell}<p>لا توجد أخبار حالياً</p></div>
+                    ` : state.news.map(n => `
+                        <div class="news-card">
+                            <div class="news-header">
+                                <span class="news-date">${formatDate(n.date)}</span>
+                                <h3 class="news-title">${n.title}</h3>
+                            </div>
+                            <p class="news-content">${n.content}</p>
+                            <p class="news-author">بواسطة: ${n.author || 'الإدارة'}</p>
+                            ${state.isAuthenticated ? `
+                                <div class="news-actions">
+                                    <button class="action-btn edit" onclick="editNews('${n.id}')">${icons.edit} تعديل</button>
+                                    <button class="action-btn delete" onclick="deleteNews('${n.id}')">${icons.trash} حذف</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
 
         function renderNotifications() {
-            return `<div class="container"><div class="section-title"><h2>الإشعارات</h2></div>${state.notifications.length === 0 ? `<div class="empty-state">${icons.bell}<p>لا توجد إشعارات</p></div>` : state.notifications.map(n => `<div class="news-card"><div class="news-header"><span class="news-date">${formatDate(n.createdAt)}</span><h3 class="news-title">${n.title}</h3></div><p class="news-content">${n.message}</p></div>`).join('')}</div>`;
+            return `
+                <div class="container">
+                    <div class="section-title"><h2>الإشعارات</h2></div>
+                    ${state.notifications.length === 0 ? `
+                        <div class="empty-state">${icons.bell}<p>لا توجد إشعارات</p></div>
+                    ` : state.notifications.map(n => `
+                        <div class="news-card">
+                            <div class="news-header">
+                                <span class="news-date">${formatDate(n.createdAt)}</span>
+                                <h3 class="news-title">${n.title}</h3>
+                            </div>
+                            <p class="news-content">${n.message}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
 
         function renderAbout() {
-            return `<div class="container"><div class="about-card"><h2>عن قبيلة المريبيط</h2><p>هذا التطبيق يهدف إلى تسهيل التواصل ومشاركة الأخبار والدعوات بين أفراد القبيلة الكرام.</p><div class="features-list"><h3>مميزات التطبيق</h3><ul><li>إشعارات فورية عند إضافة دعوة</li><li>تنبيه يوم الزفاف</li><li>مشاركة الدعوات بسهولة</li></ul></div></div></div>`;
+            return `
+                <div class="container">
+                    <div class="about-card">
+                        <h2>عن قبيلة المريبيط</h2>
+                        <p>نحن قبيلة عريقة ذات تاريخ طويل وحاضر مشرق. نجتمع على المحبة والتكافل ونحرص على التواصل بين أفراد القبيلة.</p>
+                        <p>هذا التطبيق يهدف إلى تسهيل التواصل ومشاركة الأخبار والدعوات بين أفراد القبيلة الكرام.</p>
+                        <div class="features-list">
+                            <h3>مميزات التطبيق</h3>
+                            <ul>
+                                <li>استقبال إشعارات فورية عند إضافة دعوة جديدة</li>
+                                <li>تنبيه يوم الزفاف الساعة 9 صباحاً</li>
+                                <li>مشاركة الدعوات مع الأهل والأصدقاء</li>
+                                <li>روابط مباشرة لموقع الزفاف على الخريطة</li>
+                                <li>متابعة أخبار القبيلة</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function renderLogin() {
-            return `<div class="container"><div class="login-box"><div class="admin-form"><div class="login-header">${icons.lock}<h2>تسجيل دخول المسؤول</h2></div><form onsubmit="handleLogin(event)"><div class="form-group"><label>البريد الإلكتروني</label><input type="email" name="email" class="form-input" required style="direction: ltr;"></div><div class="form-group"><label>كلمة المرور</label><input type="password" name="password" class="form-input" required></div><button type="submit" class="btn btn-primary" style="width: 100%;">دخول</button></form></div></div></div>`;
+            return `
+                <div class="container">
+                    <div class="login-box">
+                        <div class="admin-form">
+                            <div class="login-header">
+                                ${icons.lock}
+                                <h2>تسجيل دخول المسؤول</h2>
+                            </div>
+                            <form onsubmit="handleLogin(event)">
+                                <div class="form-group">
+                                    <label>البريد الإلكتروني</label>
+                                    <input type="email" name="email" class="form-input" placeholder="admin@example.com" required style="direction: ltr; text-align: left;">
+                                </div>
+                                <div class="form-group">
+                                    <label>كلمة المرور</label>
+                                    <input type="password" name="password" class="form-input" placeholder="••••••••" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="width: 100%;">${icons.lock} تسجيل الدخول</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         function renderAdmin() {
-            const ew = state.editingWedding; const en = state.editingNews;
-            return `<div class="container"><div class="section-title"><h2>لوحة التحكم</h2></div><div class="admin-form"><h3>${ew ? 'تعديل الدعوة' : 'إضافة دعوة'}</h3><form onsubmit="handleWeddingSubmit(event)"><div class="form-group"><label>اسم العريس *</label><input type="text" name="groom" class="form-input" value="${ew ? ew.groom : ''}" required></div><div class="form-row"><div class="form-group"><label>التاريخ *</label><input type="date" name="date" class="form-input" value="${ew ? ew.date : ''}" required></div><div class="form-group"><label>الوقت</label><input type="time" name="time" class="form-input" value="${ew ? ew.time : ''}"></div></div><div class="form-group"><label>المكان</label><input type="text" name="location" class="form-input" value="${ew ? ew.location : ''}"></div><div class="form-group"><label>رابط قوقل ماب</label><input type="url" name="mapLink" class="form-input" value="${ew ? ew.mapLink || '' : ''}" style="direction: ltr;"></div><div class="form-group"><label>العائلة</label><input type="text" name="family" class="form-input" value="${ew ? ew.family : ''}"></div><button type="submit" class="btn btn-primary" style="width: 100%;">${ew ? 'تحديث' : 'إضافة'}</button>${ew ? `<button type="button" class="btn btn-secondary" onclick="cancelEdit()" style="width: 100%; margin-top:0.5rem;">إلغاء</button>` : ''}</form></div><div class="admin-form"><h3>${en ? 'تعديل الخبر' : 'إضافة خبر'}</h3><form onsubmit="handleNewsSubmit(event)"><div class="form-group"><label>العنوان *</label><input type="text" name="title" class="form-input" value="${en ? en.title : ''}" required></div><div class="form-group"><label>المحتوى *</label><textarea name="content" class="form-input" required>${en ? en.content : ''}</textarea></div><button type="submit" class="btn btn-primary" style="width: 100%;">${en ? 'تحديث' : 'نشر'}</button></form></div></div>`;
+            const ew = state.editingWedding;
+            const en = state.editingNews;
+            
+            return `
+                <div class="container">
+                    <div class="section-title">
+                        <h2>لوحة التحكم</h2>
+                        <p>إدارة الدعوات والأخبار</p>
+                    </div>
+                    
+                    <div class="message success">✓ تم تسجيل الدخول بنجاح</div>
+                    
+                    <div class="admin-form">
+                        <h3>${ew ? 'تعديل الدعوة' : 'إضافة دعوة زواج'}</h3>
+                        <form onsubmit="handleWeddingSubmit(event)">
+                            <div class="form-group">
+                                <label>اسم العريس *</label>
+                                <input type="text" name="groom" class="form-input" placeholder="اسم العريس كاملاً" value="${ew ? ew.groom : ''}" required>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>التاريخ *</label>
+                                    <input type="date" name="date" class="form-input" value="${ew ? ew.date : ''}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>الوقت</label>
+                                    <input type="time" name="time" class="form-input" value="${ew ? ew.time : ''}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>المكان</label>
+                                <input type="text" name="location" class="form-input" placeholder="قاعة الاحتفالات - المدينة" value="${ew ? ew.location : ''}">
+                            </div>
+                            <div class="form-group">
+                                <label>رابط قوقل ماب</label>
+                                <input type="url" name="mapLink" class="form-input" placeholder="https://maps.google.com/..." value="${ew ? ew.mapLink || '' : ''}" style="direction: ltr; text-align: left;">
+                            </div>
+                            <div class="form-group">
+                                <label>اسم العائلة</label>
+                                <input type="text" name="family" class="form-input" placeholder="عائلة المريبيط" value="${ew ? ew.family : ''}">
+                            </div>
+                            <div style="display: flex; gap: 1rem;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1;">${icons.plus} ${ew ? 'تحديث الدعوة' : 'إضافة الدعوة'}</button>
+                                ${ew ? `<button type="button" class="btn btn-secondary" onclick="cancelEdit()">إلغاء</button>` : ''}
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="admin-form">
+                        <h3>${en ? 'تعديل الخبر' : 'إضافة خبر جديد'}</h3>
+                        <form onsubmit="handleNewsSubmit(event)">
+                            <div class="form-group">
+                                <label>عنوان الخبر *</label>
+                                <input type="text" name="title" class="form-input" placeholder="عنوان الخبر" value="${en ? en.title : ''}" required>
+                            </div>
+                            <div class="form-group">
+                                <label>محتوى الخبر *</label>
+                                <textarea name="content" class="form-input" placeholder="تفاصيل الخبر..." required>${en ? en.content : ''}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>الكاتب</label>
+                                <input type="text" name="author" class="form-input" placeholder="اسم الكاتب" value="${en ? en.author : ''}">
+                            </div>
+                            <div style="display: flex; gap: 1rem;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1;">${icons.plus} ${en ? 'تحديث الخبر' : 'نشر الخبر'}</button>
+                                ${en ? `<button type="button" class="btn btn-secondary" onclick="cancelEdit()">إلغاء</button>` : ''}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
         }
 
         function render() {
             let content = '';
+            
             switch (state.currentView) {
                 case 'home': content = renderHome(); break;
                 case 'news': content = renderNews(); break;
@@ -1121,41 +1543,48 @@
                 case 'admin': content = state.isAuthenticated ? renderAdmin() : renderLogin(); break;
                 default: content = renderHome();
             }
-            document.getElementById('app').innerHTML = `${renderHeader()}${renderSideMenu()}${renderNav()}${content}${renderWeddingModal()}`;
+            
+            document.getElementById('app').innerHTML = `
+                ${renderHeader()}
+                ${renderSideMenu()}
+                ${renderNav()}
+                ${content}
+                ${renderWeddingModal()}
+            `;
         }
 
-        // ==================== Push Notifications & Service Worker ====================
-        const notifyBar = document.getElementById('notification-bar');
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/Test/sw.js')
-                    .then(reg => {
-                        console.log('SW Registered');
-                        if (Notification.permission === 'default') { notifyBar.style.display = 'block'; }
-                    })
-                    .catch(err => console.error('SW Error', err));
-            });
-        }
-
-        function requestPushPermission() {
-            Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    showToast('تم تفعيل التنبيهات بنجاح! ✓');
-                    notifyBar.style.display = 'none';
-                } else {
-                    alert('يرجى السماح بالتنبيهات من إعدادات المتصفح لتلقي الجديد');
-                }
-            });
-        }
-
+        // ==================== Initialize ====================
         async function init() {
-            document.getElementById('app').innerHTML = `<div class="loading"><div class="spinner"></div><p style="color: var(--gold);">جاري التحميل...</p></div>`;
+            document.getElementById('app').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="color: var(--gold);">جاري التحميل...</p>
+                </div>
+            `;
+            
             await Promise.all([fetchWeddings(), fetchNews(), fetchNotifications()]);
             render();
         }
 
         init();
+        // كود إضافي لضمان عمل التطبيق والإشعارات على GitHub Pages
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        // نحدد المسار الصحيح لمستودعك Test
+        navigator.serviceWorker.register('/Test/sw.js')
+            .then(reg => console.log('نظام الإشعارات جاهز'))
+            .catch(err => console.error('خطأ في النظام', err));
+    });
+}
+
+// كود إظهار شريط التنبيهات للجوالات الجديدة
+setTimeout(() => {
+    if (window.Notification && Notification.permission === 'default') {
+        const bar = document.getElementById('notification-bar');
+        if(bar) bar.style.display = 'block';
+    }
+}, 2500);
+
     </script>
 </body>
 </html>
