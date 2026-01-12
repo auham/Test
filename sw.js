@@ -1,13 +1,13 @@
-const CACHE_NAME = 'almuraibit-v1';
+const CACHE_NAME = 'almuraibit-v2';
+// هنا أضفنا /Test/ قبل كل ملف ليعرف المتصفح مكانها الصحيح في GitHub
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/Test/',
+  '/Test/index.html',
+  '/Test/manifest.json',
+  '/Test/icon.svg'
 ];
 
-// Install event
+// تثبيت الخدمة وتخزين الملفات
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -16,7 +16,7 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activate event
+// تفعيل الخدمة وتنظيف الكاش القديم
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -32,43 +32,33 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch event - Network first, fallback to cache
+// التعامل مع طلبات الملفات
 self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Clone the response
         const responseClone = response.clone();
-        
-        // Open cache and store the response
         caches.open(CACHE_NAME).then(cache => {
-          if (event.request.method === 'GET') {
+          if (event.request.method === 'GET' && event.request.url.startsWith('http')) {
             cache.put(event.request, responseClone);
           }
         });
-        
         return response;
       })
-      .catch(() => {
-        // If network fails, try cache
-        return caches.match(event.request);
-      })
+      .catch(() => caches.match(event.request))
   );
 });
 
-// Push notification event
+// نظام الإشعارات الفورية
 self.addEventListener('push', event => {
   const options = {
-    body: event.data ? event.data.text() : 'إشعار جديد من المريبيط',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    body: event.data ? event.data.text() : 'إشعار جديد من تطبيق المريبيط',
+    icon: '/Test/icon.svg',
+    badge: '/Test/icon.svg',
     dir: 'rtl',
     lang: 'ar',
     vibrate: [100, 50, 100],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1
-    },
+    data: { dateOfArrival: Date.now(), primaryKey: 1 },
     actions: [
       { action: 'open', title: 'فتح التطبيق' },
       { action: 'close', title: 'إغلاق' }
@@ -80,13 +70,10 @@ self.addEventListener('push', event => {
   );
 });
 
-// Notification click event
+// فتح التطبيق عند الضغط على الإشعار
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-
-  if (event.action === 'open' || !event.action) {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
-  }
+  event.waitUntil(
+    clients.openWindow('/Test/')
+  );
 });
