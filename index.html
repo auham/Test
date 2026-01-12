@@ -1563,6 +1563,16 @@
         }
 
         init();
+        // كود إضافي لضمان عمل التطبيق والإشعارات على GitHub Pages
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        // نحدد المسار الصحيح لمستودعك Test
+        navigator.serviceWorker.register('/Test/sw.js')
+            .then(reg => console.log('نظام الإشعارات جاهز'))
+            .catch(err => console.error('خطأ في النظام', err));
+    });
+}
+
     </script>
 </body>
 </html>
