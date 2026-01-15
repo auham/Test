@@ -6,12 +6,62 @@
   "display": "standalone",
   "background_color": "#1a1a2e",
   "theme_color": "#D4AF37",
+  "description": "تطبيق دعوات الزواج وأخبار قبيلة المريبيط",
+  "lang": "ar",
+  "dir": "rtl",
+  "orientation": "portrait",
+  "categories": ["social", "lifestyle", "events"],
   "icons": [
     {
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "description": "شاشة رئيسية للتطبيق"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "الدعوات",
+      "short_name": "الدعوات",
+      "description": "عرض الدعوات القادمة",
+      "url": "/Test/#home",
+      "icons": [{ "src": "icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "الأخبار",
+      "short_name": "الأخبار",
+      "description": "عرض أخبار القبيلة",
+      "url": "/Test/#news",
+      "icons": [{ "src": "icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "لوحة التحكم",
+      "short_name": "التحكم",
+      "description": "لوحة إدارة التطبيق",
+      "url": "/Test/#admin",
+      "icons": [{ "src": "icon.svg", "sizes": "any" }]
+    }
+  ],
+  "gcm_sender_id": "103953800507",
+  "gcm_user_visible_only": true
 }
